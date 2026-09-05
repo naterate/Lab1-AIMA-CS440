@@ -5,9 +5,9 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.19.4
+#       jupytext_version: 1.19.5
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: tf-metal
 #     language: python
 #     name: python3
 # ---
@@ -72,7 +72,121 @@ from aima.notebook_utils import psource
 # %%
 psource(TrivialVacuumEnvironment)
 
+
 # %%
+class Vacuum2D(GraphicEnvironment):
+    def __init__(self):
+        super().__init__(2, 2)
+        self.colors.update({
+            'Dirt': (139, 69, 19), # Brown color for dirt
+            'Random2DVacuumAgent': (0, 0, 255) # Blue color for agent
+        })
+        self.locations = [(0, 0), (0, 1), (1, 0), (1, 1)]
+        self.status = {
+            loc: random.choice(['Clean', 'Dirty']) for loc in self.locations
+        }
+        for loc, state in self.status.items():
+            if state == 'Dirty':
+                self.add_thing(Dirt(), location=loc)
+        
+    def percept(self, agent):
+        '''Return a list of things that are in the agent's location'''
+        things = self.list_things_at(agent.location)
+        loc = copy.deepcopy(list(agent.location))
+        if agent.direction.direction == Direction.R:
+            loc[0] += 1
+        elif agent.direction.direction == Direction.L:
+            loc[0] -= 1
+        elif agent.direction.direction == Direction.D:
+            loc[1] += 1
+        elif agent.direction.direction == Direction.U:
+            loc[1] -= 1
+        if not self.is_inbounds(loc):
+            things.append(Bump())
+        return things
+    
+    def execute_action(self, agent, action):
+        agent_name = str(agent)[1:-1]
+        if action == 'TurnRight':
+            print('{} decided to {} at location: {}'.format(agent_name, action, agent.location))
+            agent.turn(Direction.R)
+        elif action == 'TurnLeft':
+            print('{} decided to {} at location: {}'.format(agent_name, action, agent.location))
+            agent.turn(Direction.L)
+        elif action == 'MoveForward':
+            percepts = self.percept(agent)
+            if any(isinstance(p, Bump) for p in percepts):
+                print('{} decided to move to the {} but bumped at location: {}'.format(agent_name, agent.direction.direction, agent.location))
+                agent.moveforward(success=False)
+            else:
+                print('{} decided to move to the {} at location: {}'.format(agent_name, agent.direction.direction, agent.location))
+                agent.moveforward(success=True)
+        elif action == 'Suck':
+            print('{} decided to {} at location: {}'.format(agent_name, action, agent.location))
+            items = self.list_things_at(agent.location)
+            if len(items) > 0 and agent.suck(items[0]):
+                print('{} sucked {} at location: {}'.format(agent_name, str(items[0])[1:-1], agent.location))
+                self.delete_thing(items[0])
+                self.status[agent.location] = 'Clean'
+        elif action == 'NoOp':
+            print('{} decided to {} at location: {}'.format(agent_name, action, agent.location))
+
+    def is_done(self):
+        '''Done when all agents are dead or all tiles are clean'''
+        all_clean = not any(isinstance(thing, Dirt) for thing in self.things)
+        dead_agents = not any(agent.is_alive() for agent in self.agents)
+        return dead_agents or all_clean
+
+
+class Random2DVacuumAgent(Agent):
+    location = [0, 1]
+    direction = Direction("down")
+
+    def moveforward(self, success=True):
+        '''moveforward possible only if success is true'''
+        if not success:
+            return
+
+        x, y = self.location
+        if self.direction.direction == Direction.R:
+            x += 1
+        elif self.direction.direction == Direction.L:
+            x -= 1
+        elif self.direction.direction == Direction.D:
+            y += 1
+        elif self.direction.direction == Direction.U:
+            y -= 1
+        self.location = (x, y)
+
+    def turn(self, d):
+        self.direction = self.direction + d
+        
+    def suck(self, thing):
+        return isinstance(thing, Dirt)
+
+
+# %%
+# 2x2 Vacuum Environment
+vacuum_env = Vacuum2D()
+print("Initial state of the Environment: {}.".format(vacuum_env.status))
+
+# Create the random agent
+random_agent = Random2DVacuumAgent(RandomAgentProgram(['TurnRight', 'TurnLeft', 'MoveForward', 'Suck']))
+
+# Add random agent to the environment
+vacuum_env.add_thing(random_agent)
+print("RandomVacuumAgent is located at {}.".format(random_agent.location))
+
+# %%
+# Running the environment
+vacuum_env.run()
+
+print("Final state of the Environment: {}.".format(vacuum_env.status))
+print("RandomVacuumAgent is located at {}.".format(random_agent.location))
+
+# %%
+# Trivial Vacuum Environment
+
 # These are the two locations for the two-state environment
 loc_A, loc_B = (0, 0), (1, 0)
 
