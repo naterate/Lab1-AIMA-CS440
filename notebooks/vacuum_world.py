@@ -7,7 +7,7 @@
 #       format_version: '1.3'
 #       jupytext_version: 1.19.5
 #   kernelspec:
-#     display_name: tf-metal
+#     display_name: Python 3
 #     language: python
 #     name: python3
 # ---
@@ -79,7 +79,7 @@ class Vacuum2D(GraphicEnvironment):
         super().__init__(2, 2)
         self.colors.update({
             'Dirt': (139, 69, 19), # Brown color for dirt
-            'Random2DVacuumAgent': (0, 0, 255) # Blue color for agent
+            'VacuumAgent2D': (0, 0, 255) # Blue color for agent
         })
         self.locations = [(0, 0), (0, 1), (1, 0), (1, 1)]
         self.status = {
@@ -138,7 +138,7 @@ class Vacuum2D(GraphicEnvironment):
         return dead_agents or all_clean
 
 
-class Random2DVacuumAgent(Agent):
+class VacuumAgent2D(Agent):
     location = [0, 1]
     direction = Direction("down")
 
@@ -171,7 +171,7 @@ vacuum_env = Vacuum2D()
 print("Initial state of the Environment: {}.".format(vacuum_env.status))
 
 # Create the random agent
-random_agent = Random2DVacuumAgent(RandomAgentProgram(['TurnRight', 'TurnLeft', 'MoveForward', 'Suck']))
+random_agent = VacuumAgent2D(RandomAgentProgram(['TurnRight', 'TurnLeft', 'MoveForward', 'Suck']))
 
 # Add random agent to the environment
 vacuum_env.add_thing(random_agent)
@@ -292,39 +292,41 @@ trivial_vacuum_env.delete_thing(table_driven_agent)
 
 # %%
 
-loc_A = (0, 0)
-loc_B = (1, 0)
-
 """We change the simpleReflexAgentProgram so that it doesn't make use of the Rule class"""
 def SimpleReflexAgentProgram():
     """This agent takes action based solely on the percept. [Figure 2.10]"""
     
     def program(percept):
-        loc, status = percept
-        return ('Suck' if status == 'Dirty' 
-                else'Right' if loc == loc_A 
-                            else'Left')
+        #If there is dirt, suck, otherwise if there's a wall, turn right, otherwise move forward
+        for p in percept:
+            if isinstance(p, Dirt):
+                return 'Suck'
+        for p in percept:
+            if isinstance(p, Bump):
+                return 'TurnRight'      
+        return 'MoveForward'
+    
     return program
-
         
 # Create a simple reflex agent the two-state environment
 program = SimpleReflexAgentProgram()
-simple_reflex_agent = Agent(program)
+simple_reflex_agent = VacuumAgent2D(program)
 
 # %% [markdown]
 # Now add the agent to the environment:
 
 # %%
-trivial_vacuum_env.add_thing(simple_reflex_agent)
+vacuum_env = Vacuum2D()
+vacuum_env.add_thing(simple_reflex_agent)
 
 print("SimpleReflexVacuumAgent is located at {}.".format(simple_reflex_agent.location))
 
 # %%
 # Run the environment
-trivial_vacuum_env.step()
+vacuum_env.run()
 
 # Check the current state of the environment
-print("State of the Environment: {}.".format(trivial_vacuum_env.status))
+print("State of the Environment: {}.".format(vacuum_env.status))
 
 print("SimpleReflexVacuumAgent is located at {}.".format(simple_reflex_agent.location))
 
